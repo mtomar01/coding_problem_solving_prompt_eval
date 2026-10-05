@@ -1,0 +1,89 @@
+{
+  "tasks": [
+    {
+      "task": "Write a Python function that takes an S3 bucket name and a prefix, and uses boto3 to return a list of all object keys under that prefix, handling pagination.",
+      "format": "python"
+    },
+    {
+      "task": "Write a Python function that takes an EC2 instance ID and region name, and uses boto3 to stop the instance and return its new state name.",
+      "format": "python"
+    },
+    {
+      "task": "Write a Python function that takes a DynamoDB table name, a partition key name, and a key value, and uses boto3 to return the matching item as a dictionary, or None if no item is found.",
+      "format": "python"
+    },
+    {
+      "task": "Create an IAM policy document in JSON that grants read-only access (s3:GetObject and s3:ListBucket) to a bucket named 'my-data-bucket' and all objects within it.",
+      "format": "json"
+    },
+    {
+      "task": "Create an S3 bucket lifecycle configuration in JSON that transitions objects with the prefix 'logs/' to GLACIER after 90 days and expires them after 365 days.",
+      "format": "json"
+    },
+    {
+      "task": "Create an IAM trust policy document in JSON that allows the AWS Lambda service to assume a role.",
+      "format": "json"
+    },
+    {
+      "task": "Write a regex that matches a valid AWS S3 bucket name: 3-63 characters long, consisting only of lowercase letters, numbers, dots, and hyphens, and beginning and ending with a letter or number.",
+      "format": "regex"
+    },
+    {
+      "task": "Write a regex that matches an EC2 instance ID, which starts with 'i-' followed by either 8 or 17 lowercase hexadecimal characters.",
+      "format": "regex"
+    },
+    {
+      "task": "Write a regex that matches an AWS IAM role ARN in the format 'arn:aws:iam::<12-digit-account-id>:role/<role-name>', where the role name may contain alphanumeric characters and the characters +=,.@_- .",
+      "format": "regex"
+    }
+  ],
+  "golden_examples": {
+    "python": {
+      "task": "Write a Python function that takes an S3 bucket name and a prefix, uses boto3 to list all objects under that prefix (handling pagination), and returns the total size in bytes of all the objects.",
+      "output": "import boto3\n\n\ndef get_total_size(bucket_name, prefix):\n    s3_client = boto3.client(\"s3\")\n    paginator = s3_client.get_paginator(\"list_objects_v2\")\n    total_size = 0\n    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):\n        for obj in page.get(\"Contents\", []):\n            total_size += obj[\"Size\"]\n    return total_size",
+      "score": 9.5,
+      "why_ideal": [
+        "Uses the list_objects_v2 paginator, so pagination is handled correctly for buckets with more than 1000 objects.",
+        "Uses page.get(\"Contents\", []) to handle empty pages and prefixes with no matching objects, so there is no KeyError.",
+        "Short, readable and idiomatic, and it returns an integer byte count as the task requires."
+      ]
+    },
+    "json": {
+      "task": "Create an IAM policy document in JSON that grants read-only access (s3:GetObject and s3:ListBucket) to a bucket named 'my-data-bucket' and all objects within it.",
+      "output": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ListBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::my-data-bucket\"\n    },\n    {\n      \"Sid\": \"GetObjects\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::my-data-bucket/*\"\n    }\n  ]\n}",
+      "score": 9.666666666666666,
+      "why_ideal": [
+        "Correctly separates bucket-level (s3:ListBucket on the bucket ARN) and object-level (s3:GetObject on bucket/*) resources, which is the required pattern in AWS.",
+        "Uses a valid policy version (2012-10-17) and valid JSON structure with descriptive Sids.",
+        "Follows least privilege by granting only the two requested actions with no wildcards on actions."
+      ]
+    },
+    "regex": {
+      "task": "Write a regex that matches a valid AWS S3 bucket name: 3 to 63 characters long, consisting only of lowercase letters, numbers, dots, and hyphens, and beginning and ending with a letter or number.",
+      "output": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+      "score": 9.5,
+      "why_ideal": [
+        "Correctly enforces the 3-63 length: 1 start char + 1 to 61 middle chars + 1 end char gives 3 to 63.",
+        "Restricts characters to lowercase letters, digits, dots and hyphens, and requires a letter or digit at both ends.",
+        "Concise, readable, and uses properly anchored ^ and $ so the whole string must match."
+      ]
+    }
+  },
+  "common_failures": {
+    "python": [
+      "No error handling for common failures such as botocore ClientError (invalid instance ID, permissions, incorrect state) or missing credentials",
+      "No docstring or type hints, which reduces clarity about inputs and the returned value",
+      "Returned state is the immediate transition state ('stopping'), not 'stopped'; this is likely what is intended but is undocumented and there is no waiter option"
+    ],
+    "regex": [
+      "Does not enforce other official S3 rules such as no consecutive dots (..), no IP-address format, and no forbidden prefixes/suffixes like xn-- or -s3alias.",
+      "Dots adjacent to hyphens (e.g., 'a.-b' or 'a-.b') are accepted, though S3 disallows them in practice.",
+      "In some regex flavors (e.g., Python, `$` matches before a trailing newline), so a name with a trailing newline could pass; \\z or \\Z would be safer."
+    ],
+    "json": [
+      "No explanation or usage instructions, such as the aws s3api put-bucket-lifecycle-configuration command, so users may not know how to apply it.",
+      "Does not include optional best-practice settings like AbortIncompleteMultipartUpload or handling of noncurrent versions if versioning is enabled.",
+      "Does not mention that GLACIER objects have a 90-day minimum storage duration, which is satisfied here (275 days), or the alternatives GLACIER_IR and DEEP_ARCHIVE."
+    ]
+  }
+}
