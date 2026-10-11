@@ -1,15 +1,15 @@
 {
   "tasks": [
     {
-      "task": "Write a Python function that takes an S3 bucket name and a prefix, and uses boto3 to return a list of all object keys under that prefix, handling pagination.",
+      "task": "Write a Python function that takes an S3 bucket name and returns a list of all object keys in the bucket that end with '.csv', using boto3 and handling pagination.",
       "format": "python"
     },
     {
-      "task": "Write a Python function that takes an EC2 instance ID and region name, and uses boto3 to stop the instance and return its new state name.",
+      "task": "Write a Python function that takes an EC2 instance ID and region name, and uses boto3 to return the instance's current state (e.g., 'running', 'stopped').",
       "format": "python"
     },
     {
-      "task": "Write a Python function that takes a DynamoDB table name, a partition key name, and a key value, and uses boto3 to return the matching item as a dictionary, or None if no item is found.",
+      "task": "Write a Python function that takes a DynamoDB table name and a dictionary representing an item, and writes the item to the table using boto3, returning True if the HTTP status code of the response is 200.",
       "format": "python"
     },
     {
@@ -17,23 +17,23 @@
       "format": "json"
     },
     {
-      "task": "Create an S3 bucket lifecycle configuration in JSON that transitions objects with the prefix 'logs/' to GLACIER after 90 days and expires them after 365 days.",
+      "task": "Create a JSON object representing an S3 bucket lifecycle configuration that transitions objects with the prefix 'logs/' to GLACIER after 90 days and expires them after 365 days.",
       "format": "json"
     },
     {
-      "task": "Create an IAM trust policy document in JSON that allows the AWS Lambda service to assume a role.",
+      "task": "Create a JSON IAM trust policy that allows the AWS Lambda service to assume a role.",
       "format": "json"
     },
     {
-      "task": "Write a regex that matches a valid AWS S3 bucket name: 3-63 characters long, consisting only of lowercase letters, numbers, dots, and hyphens, and beginning and ending with a letter or number.",
+      "task": "Write a regex that matches a valid AWS S3 bucket name: 3 to 63 characters, lowercase letters, numbers, dots, and hyphens only, beginning and ending with a letter or number.",
       "format": "regex"
     },
     {
-      "task": "Write a regex that matches an EC2 instance ID, which starts with 'i-' followed by either 8 or 17 lowercase hexadecimal characters.",
+      "task": "Write a regex that matches an AWS account ARN for an IAM role in the format 'arn:aws:iam::123456789012:role/RoleName', capturing the 12-digit account ID and the role name.",
       "format": "regex"
     },
     {
-      "task": "Write a regex that matches an AWS IAM role ARN in the format 'arn:aws:iam::<12-digit-account-id>:role/<role-name>', where the role name may contain alphanumeric characters and the characters +=,.@_- .",
+      "task": "Write a regex that matches an EC2 instance ID, which consists of 'i-' followed by either 8 or 17 lowercase hexadecimal characters.",
       "format": "regex"
     }
   ],
@@ -59,31 +59,31 @@
       ]
     },
     "regex": {
-      "task": "Write a regex that matches a valid AWS S3 bucket name: 3 to 63 characters long, consisting only of lowercase letters, numbers, dots, and hyphens, and beginning and ending with a letter or number.",
+      "task": "Write a regex that matches a valid AWS S3 bucket name: 3 to 63 characters, lowercase letters, numbers, dots, and hyphens only, beginning and ending with a letter or number.",
       "output": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
-      "score": 9.5,
+      "score": 9.666666666666666,
       "why_ideal": [
-        "Correctly enforces the 3-63 length: 1 start char + 1 to 61 middle chars + 1 end char gives 3 to 63.",
-        "Restricts characters to lowercase letters, digits, dots and hyphens, and requires a letter or digit at both ends.",
-        "Concise, readable, and uses properly anchored ^ and $ so the whole string must match."
+        "Correctly enforces length of 3-63 characters: 1 start + 1 to 61 middle + 1 end gives 3 to 63.",
+        "Restricts characters to lowercase letters, digits, dots, and hyphens, as the task specifies.",
+        "Requires first and last characters to be alphanumeric, with proper anchors ^ and $ that prevent partial matches."
       ]
     }
   },
   "common_failures": {
+    "json": [
+      "Uses the boto3/SDK format (Transitions, Filter) rather than the raw S3 REST API XML-style JSON naming (Transition as a single element). The task does not say which format is expected, so this is ambiguous.",
+      "Omits optional safeguards such as AbortIncompleteMultipartUpload and noncurrent version handling, which matter for versioned buckets.",
+      "Gives no explanation of which tool or API (CLI vs boto3) the JSON is meant for."
+    ],
     "python": [
-      "No error handling for common failures such as botocore ClientError (invalid instance ID, permissions, incorrect state) or missing credentials",
-      "No docstring or type hints, which reduces clarity about inputs and the returned value",
-      "Returned state is the immediate transition state ('stopping'), not 'stopped'; this is likely what is intended but is undocumented and there is no waiter option"
+      "Does not handle botocore ClientError (e.g., InvalidInstanceID.NotFound, malformed ID, auth errors), so the not-found ValueError is largely unreachable since AWS raises ClientError instead.",
+      "No docstring, type hints, or input validation, and no handling of missing credentials (NoCredentialsError).",
+      "Creates a new client on every call, which is inefficient if called repeatedly, and offers no way to inject a session or client for testing."
     ],
     "regex": [
-      "Does not enforce other official S3 rules such as no consecutive dots (..), no IP-address format, and no forbidden prefixes/suffixes like xn-- or -s3alias.",
-      "Dots adjacent to hyphens (e.g., 'a.-b' or 'a-.b') are accepted, though S3 disallows them in practice.",
-      "In some regex flavors (e.g., Python, `$` matches before a trailing newline), so a name with a trailing newline could pass; \\z or \\Z would be safer."
-    ],
-    "json": [
-      "No explanation or usage instructions, such as the aws s3api put-bucket-lifecycle-configuration command, so users may not know how to apply it.",
-      "Does not include optional best-practice settings like AbortIncompleteMultipartUpload or handling of noncurrent versions if versioning is enabled.",
-      "Does not mention that GLACIER objects have a 90-day minimum storage duration, which is satisfied here (275 days), or the alternatives GLACIER_IR and DEEP_ARCHIVE."
+      "Allowing '/' in the role-name group means the capture includes any path (e.g. 'path/to/RoleName') rather than just the role name, so the name and path are not separated.",
+      "Does not support other partitions (aws-cn, aws-us-gov), which are valid ARN variants, though the task only specified 'aws'.",
+      "\\w may match Unicode letters/digits in some regex engines, and there is no enforcement of the 64-character role-name limit or a path-must-start-and-end-with-slash structure."
     ]
   }
 }
